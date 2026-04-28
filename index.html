@@ -720,6 +720,10 @@ function App(){
     setSaving(true);
     const np={id:genId(),author:form.author.trim(),avatar:user?.avatar||"🌸",avatarImg:user?.avatarImg||"",category:form.category,message:form.message.trim(),flower:form.flower,date:new Date().toISOString(),likes:0,bookmarks:0,likedBy:{},replyCount:0,ts:Date.now()};
     await writePost(np);
+    
+    if(emailCfg&&emailCfg.enabled&&emailCfg.serviceId&&emailCfg.templateId&&emailCfg.publicKey&&emailCfg.adminEmail){
+      sendNotificationEmail(emailCfg,np).then(ok=>{if(ok)console.log("📧 通知メール送信成功");});
+    }
     setForm(p=>({...p,message:"",category:categories[0]||DEFAULT_CATEGORIES[0]}));
     setSaving(false);showToast("🌸 予祝をコミュニティに届けました！");
     setTimeout(()=>setView("feed"),1600);
