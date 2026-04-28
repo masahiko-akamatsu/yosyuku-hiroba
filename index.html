@@ -1366,6 +1366,25 @@ function App(){
               </div>
             </div>
 
+            {/* EmailJS設定 */}
+            <div style={{background:"#fff",borderRadius:22,padding:"24px 20px",boxShadow:"0 4px 28px rgba(200,100,140,.1)",border:"1px solid rgba(232,180,196,.35)",marginBottom:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <div style={{fontFamily:"'Shippori Mincho',serif",fontWeight:800,fontSize:17,color:"#6b1a3a"}}>📧 メール通知設定</div>
+                <button onClick={()=>setEmailCfg(p=>({...p,enabled:!p.enabled}))} style={{background:emailCfg.enabled?"linear-gradient(135deg,#e8728a,#c85a8e)":"#f0e0e8",border:"none",borderRadius:50,padding:"6px 16px",fontSize:12,cursor:"pointer",color:emailCfg.enabled?"#fff":"#9a5070",fontFamily:"'Noto Serif JP',serif",transition:"all .2s"}}>{emailCfg.enabled?"🟢 ON":"⚪ OFF"}</button>
+              </div>
+              <p style={{fontSize:12,color:"#9a5070",fontFamily:"'Noto Serif JP',serif",marginBottom:18,lineHeight:1.7}}>投稿があったとき管理者メールに通知します。EmailJSのアカウントが必要です。</p>
+              <div style={{marginBottom:12}}><div style={{fontSize:12,color:"#8b4060",marginBottom:5,fontFamily:"'Noto Serif JP',serif"}}>管理者メールアドレス</div><input className="inp inp-ok" type="email" value={emailCfg.adminEmail} onChange={e=>setEmailCfg(p=>({...p,adminEmail:e.target.value}))} placeholder="your@email.com" style={{border:"1.5px solid #e8b4c4"}}/></div>
+              <div style={{marginBottom:12}}><div style={{fontSize:12,color:"#8b4060",marginBottom:5,fontFamily:"'Noto Serif JP',serif"}}>Service ID</div><input className="inp inp-ok" value={emailCfg.serviceId} onChange={e=>setEmailCfg(p=>({...p,serviceId:e.target.value}))} placeholder="service_xxxxxxx" style={{border:"1.5px solid #e8b4c4"}}/></div>
+              <div style={{marginBottom:12}}><div style={{fontSize:12,color:"#8b4060",marginBottom:5,fontFamily:"'Noto Serif JP',serif"}}>Template ID</div><input className="inp inp-ok" value={emailCfg.templateId} onChange={e=>setEmailCfg(p=>({...p,templateId:e.target.value}))} placeholder="template_xxxxxxx" style={{border:"1.5px solid #e8b4c4"}}/></div>
+              <div style={{marginBottom:18}}><div style={{fontSize:12,color:"#8b4060",marginBottom:5,fontFamily:"'Noto Serif JP',serif"}}>Public Key</div><input className="inp inp-ok" value={emailCfg.publicKey} onChange={e=>setEmailCfg(p=>({...p,publicKey:e.target.value}))} placeholder="xxxxxxxxxxxxxxxxx" style={{border:"1.5px solid #e8b4c4"}}/></div>
+              <div style={{display:"flex",gap:10}}>
+                <button className="btn-p" onClick={handleEmailSave} disabled={emailSaving} style={{flex:1,padding:"12px",fontSize:14}}>{emailSaving?"保存中...":"💾 保存する"}</button>
+                <button onClick={handleEmailTest} disabled={!emailCfg.serviceId||!emailCfg.templateId||!emailCfg.publicKey||!emailCfg.adminEmail} style={{background:"transparent",border:"1.5px solid #e8b4c4",borderRadius:50,padding:"12px 18px",fontSize:13,cursor:"pointer",color:"#c06080",fontFamily:"'Noto Serif JP',serif",opacity:(!emailCfg.serviceId||!emailCfg.templateId||!emailCfg.publicKey||!emailCfg.adminEmail)?0.5:1}}>📨 テスト送信</button>
+              </div>
+              {emailTestResult==="ok"&&<div style={{color:"#4caf84",fontSize:12,marginTop:10,fontFamily:"'Noto Serif JP',serif"}}>✅ テストメールを送信しました！</div>}
+              {emailTestResult==="err"&&<div style={{color:"#e8728a",fontSize:12,marginTop:10,fontFamily:"'Noto Serif JP',serif"}}>❌ 送信失敗。設定を確認してください。</div>}
+            </div>
+
             {/* 統計カード */}
             <div style={{background:"#fff",borderRadius:22,padding:"24px 20px",boxShadow:"0 4px 28px rgba(200,100,140,.1)",border:"1px solid rgba(232,180,196,.35)"}}>
               <div style={{fontFamily:"'Shippori Mincho',serif",fontWeight:800,fontSize:17,color:"#6b1a3a",marginBottom:16}}>📊 コミュニティ統計</div>
