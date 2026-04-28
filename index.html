@@ -12,6 +12,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-text-size-adjust:100%}
@@ -107,7 +109,8 @@ if(!firebaseReady&&typeof firebase!=="undefined"){
 
 /* ══ 定数 ══ */
 const KEY_USER="yosyuku_v4_user",KEY_LIKED="yosyuku_v4_liked",KEY_BM="yosyuku_v4_bm";
-const DEFAULT_ADMIN_PASSWORD="yosyuku2026"; /* 初期パスワード */
+const DEFAULT_ADMIN_PASSWORD="yosyuku2026";
+const KEY_EMAIL_CFG="yosyuku_email_cfg"; /* 初期パスワード */
 const DEFAULT_CATEGORIES=["仕事・キャリア","健康・美容","家族・人間関係","お金・豊かさ","夢・目標","自分磨き"];
 const FLOWERS=["🌸","🌺","🌹","🌷","💐","🌼","✨","🌟","💫","🎀","🍀","🦋"];
 /* ① フルーツアイコン追加（いちご含む） */
@@ -143,6 +146,19 @@ function fmtDate(iso){
   return `${Y}年${M}月${D}日`;
 }
 function genId(){return`p_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;}
+/* ══ EmailJS メール送信関数 ══ */
+async function sendNotificationEmail(emailCfg, post){
+  if(!emailCfg||!emailCfg.serviceId||!emailCfg.templateId||!emailCfg.publicKey||!emailCfg.adminEmail){
+    return false;
+  }
+  try{
+    emailjs.init(emailCfg.publicKey);
+    const params={to_email:emailCfg.adminEmail,author:post.author,category:post.category,message:post.message,date:fmtDate(post.date),site_url:window.location.href};
+    await emailjs.send(emailCfg.serviceId,emailCfg.templateId,params);
+    return true;
+  }catch(e){return false;}
+}
+
 
 /* ══ 花びら ══ */
 const PETALS=Array.from({length:12},(_,i)=>({id:i,x:Math.round(Math.random()*100),sz:Math.round(10+Math.random()*14),op:parseFloat((0.1+Math.random()*0.16).toFixed(2)),dur:parseFloat((10+Math.random()*14).toFixed(1)),dl:parseFloat((Math.random()*10).toFixed(1)),e:FLOWERS[Math.floor(Math.random()*4)]}));
@@ -257,7 +273,14 @@ function App(){
   const[newPwConfirm,setNewPwConfirm]=useState("");
   const[pwChangeError,setPwChangeError]=useState("");
   const[pwChangeSuccess,setPwChangeSuccess]=useState(false);
+  const[showResetModal,setShowResetModal]=useState(false);
+  const[resetCode,setResetCode]=useState("");
+  const[resetError,setResetError]=useState("");
+  const[resetSuccess,setResetSuccess]=useState(false);
 
+  const[emailCfg,setEmailCfg]=useState(()=>lsGet(KEY_EMAIL_CFG)||{adminEmail:"",serviceId:"",templateId:"",publicKey:"",enabled:false});
+  const[emailSaving,setEmailSaving]=useState(false);
+  const[emailTestResult,setEmailTestResult]=useState(null);
   const[form,setForm]=useState({author:"",category:categories[0]||DEFAULT_CATEGORIES[0],message:"",flower:"🌸"});
   const[errors,setErrors]=useState({});
   /* ② onboardのデフォルトnameを空→ユーザーが名前を入れやすく */
@@ -591,6 +614,16 @@ function App(){
 
 
   /* ── 管理者ログイン ── */
+  const RESET_CODE="YOSYUKU-RESET-2026";
+  const handleReset=async()=>{
+    if(resetCode.trim()!==RESET_CODE){setResetError("リセットコードが正しくありません");return;}
+    lsSet("yosyuku_admin_pw",DEFAULT_ADMIN_PASSWORD);
+    setAdminPassword(DEFAULT_ADMIN_PASSWORD);
+    if(firebaseReady&&db){try{await db.ref("adminConfig/password").set(DEFAULT_ADMIN_PASSWORD);}catch(e){}}
+    setResetSuccess(true);setResetError("");
+    setTimeout(()=>{setShowResetModal(false);setResetCode("");setResetSuccess(false);},2000);
+    showToast("🔑 パスワードをリセットしました");
+  };
   const handleAdminLogin=()=>{
     if(adminPwInput===adminPassword){setIsAdmin(true);setAdminPwError(false);setAdminPwInput("");showToast("🔑 管理者としてログインしました");setView("admin");}
     else{setAdminPwError(true);}
@@ -664,6 +697,20 @@ function App(){
 
 
   /* ── 投稿 ── */
+  const handleEmailSave=async()=>{
+    setEmailSaving(true);
+    lsSet(KEY_EMAIL_CFG,emailCfg);
+    if(firebaseReady&&db){try{await db.ref("adminConfig/emailCfg").set(emailCfg);}catch(e){}}
+    setEmailSaving(false);
+    showToast("📧 メール通知設定を保存しました！");
+  };
+  const handleEmailTest=async()=>{
+    setEmailTestResult(null);
+    const testPost={author:"テスト",category:"テスト",message:"これはテスト通知メールです",date:new Date().toISOString()};
+    const ok=await sendNotificationEmail(emailCfg,testPost);
+    setEmailTestResult(ok?"ok":"err");
+    setTimeout(()=>setEmailTestResult(null),5000);
+  };
   const handleSubmit=async()=>{
     const e={};
     if(!form.author.trim())e.author="お名前を入力してください";
@@ -1217,7 +1264,20 @@ function App(){
               style={{marginBottom:12,border:adminPwError?"2px solid #e8728a":"1.5px solid #e8b4c4",textAlign:"center",letterSpacing:".15em"}}/>
             {adminPwError&&<div style={{color:"#e8728a",fontSize:12,marginBottom:10,fontFamily:"'Noto Serif JP',serif"}}>パスワードが違います</div>}
             <button className="btn-p" onClick={handleAdminLogin} style={{width:"100%",padding:"14px",fontSize:15}}>ログイン</button>
+            <div style={{marginTop:16}}>
+              <button onClick={()=>{setShowResetModal(true);setResetCode("");setResetError("");setResetSuccess(false);}} style={{background:"transparent",border:"none",color:"#b07090",fontSize:12,fontFamily:"'Noto Serif JP',serif",cursor:"pointer",textDecoration:"underline"}}>パスワードを忘れた方へ</button>
+            </div>
           </div>}
+
+          {showResetModal&&<ModalBg onClose={()=>setShowResetModal(false)}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:36,marginBottom:12}}>🔓</div>
+              <h3 style={{fontFamily:"'Shippori Mincho',serif",fontWeight:800,fontSize:18,color:"#6b1a3a",marginBottom:8}}>パスワードリセット</h3>
+              <p style={{fontSize:12,color:"#9a5070",fontFamily:"'Noto Serif JP',serif",marginBottom:20,lineHeight:1.8}}>リセットコードを入力すると<br/>初期パスワードに戻ります。<br/><span style={{color:"#c85a8e",fontWeight:"bold"}}>初期値：{DEFAULT_ADMIN_PASSWORD}</span></p>
+              {!resetSuccess&&<><input className="inp inp-ok" type="text" value={resetCode} onChange={e=>{setResetCode(e.target.value);setResetError("");}} onKeyDown={e=>e.key==="Enter"&&handleReset()} placeholder="リセットコードを入力" style={{marginBottom:10,textAlign:"center"}}/>{resetError&&<div style={{color:"#e8728a",fontSize:12,marginBottom:10,fontFamily:"'Noto Serif JP',serif"}}>{resetError}</div>}<button className="btn-p" onClick={handleReset} style={{width:"100%",padding:"13px",fontSize:14,marginBottom:10}}>リセットする</button><div style={{fontSize:11,color:"#9a8070",fontFamily:"'Noto Serif JP',serif",lineHeight:1.8,padding:"12px",background:"#fff8f5",borderRadius:10}}>💡 リセットコード：<strong>YOSYUKU-RESET-2026</strong></div></>}
+              {resetSuccess&&<div style={{color:"#4caf84",fontSize:15,fontFamily:"'Noto Serif JP',serif",padding:"20px 0"}}>✅ パスワードをリセットしました！</div>}
+            </div>
+          </ModalBg>}
 
           {/* ログイン済み：管理画面 */}
           {isAdmin&&<div>
